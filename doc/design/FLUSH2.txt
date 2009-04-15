@@ -1,0 +1,85 @@
+
+
+FLUSH2 design
+=============
+
+Author: Bela Ban
+Version: $Id: FLUSH2.txt,v 1.5 2007/10/22 19:46:52 belaban Exp $
+
+Prerequisites:
+- A flush is always started and stopped by the *same* member, both for joins and state transfer
+- For state transfers (but not for joins), we can have different members start a flush at the same time
+
+
+Structures:
+- FlushState
+  - flush_active: whether we are currently running a flush
+  - flush_leaders: set of members which started the flush (no duplicates)
+  - start_flush_set: list of members from whom we expect a START-FLUSH-OK message
+  - digests: digests from all members, received with START-FLUSH-OK message
+  - stop_flush_set: list of members to whom we send a STOP-FLUSH message
+  - down_mutex: for blocking of multicast down calls, unicasts are passed at all times
+
+
+
+On SUSPEND event:
+- If FlushState.flush_active:
+    - Add flush leader to flush_leaders (if not yet present)
+    - If already present: terminate (don't send START-FLUSH message)
+-Else
+    - Set FlushState.flush_active to true
+    - Add flush leader to flush_leaders (if not yet present)
+    - Set start_flush_set and stop_flush_set
+- Multicast START-FLUSH
+- Block until start_flush_set is empty (block on start_flush_set)
+- Look at FlushState.digests:
+    - If all digests are the same --> return
+    - Else --> run reconciliation phase
+
+On START-FLUSH(sender=P):
+- If FlushState.flush_active:
+    - Add flush leader to flush_leaders (if not yet present)
+-Else
+    - Set FlushState.flush_active to true
+    - Add flush leader to flush_leaders (if not yet present)
+- Call block()
+- Make down_mutex block multicast messages from now on
+- Return START-FLUSH-OK with my digest to P
+
+
+On START-FLUSH-OK(sender=P,digest D):
+- Add digest D to FlushState.digests
+- Remove P from FlushPhase.start_flush_set
+- Notify FlushPhase.start_flush_set if empty
+
+On RESUME event:
+- Multicast STOP-FLUSH event (asynchronously, don't wait for results)
+
+
+On STOP-FLUSH(sender=P):
+- Remove P from flush_leaders
+- If flush_leaders is empty:
+    - Unblock down_mutex
+
+
+On SUSPECT(S):
+- Remove S from start_flush_set and stop_flush_set
+- If start_flush_set is now empty --> notify thread blocking on it
+- Remove S from FlushState.flush_leaders
+- If FlushState.flush_leaders is empty: (flush leader S crashed during flush !)
+    - Unblock down_mutex
+
+
+On view change V:
+- Remove all members that are not part of V from start_flush_set and stop_flush_set
+- If start_flush_set is now empty --> notify thread blocking on it
+- Remove all members from FlushState.flush_leaders which are not part of V
+- If FlushState.flush_leaders is empty: (flush leader crashed during flush !)
+    - Unblock down_mutex
+
+
+
+Reconciliation phase (in NAKACK):
+- Sends XMIT requests for message not in local digest, but in digest received from REBROADCAST_MSGS
+- Wait until local digest (updated when missing messages are received) is same as digest received from REBROADCAST_MSGS
+- Takes suspects into account

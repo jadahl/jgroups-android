@@ -1,0 +1,61 @@
+
+Release Notes JGroups 2.6.1
+===========================
+
+Version: $Id: ReleaseNotes-2.6.1.txt,v 1.1.2.2 2007/11/28 12:00:21 belaban Exp $
+Author: Bela Ban
+
+JGroups 2.6.1 is still API-backwards compatible with previous versions (down to 2.2.5).
+JGroups 2.6.1 is *binary backwards compatible* with 2.6.
+
+Below is a summary (with links to the detailed description) of the major new features.
+
+
+FLUSH simplification and bug fixes
+----------------------------------
+[http://jira.jboss.com/jira/browse/JGRP-624]
+[http://jira.jboss.com/jira/browse/JGRP-622]
+[http://jira.jboss.com/jira/browse/JGRP-623]
+
+We simplified FLUSH in 2.7, and fixed a number of bugs, which were all backported to 2.6.1
+
+
+Reincarnation prevention
+------------------------
+[http://jira.jboss.com/jira/browse/JGRP-637]
+[http://jira.jboss.com/jira/browse/JGRP-130]
+
+Reincarnation can be prevented by saving ports in persistent storage and reusing them only after some time. See
+http://wiki.jboss.org/wiki/Wiki.jsp?page=HandleJoinProblem for how to enabling persistent ports (off by default).
+
+
+Manual
+------
+The manual is online at http://www.jgroups.org/javagroupsnew/docs/manual/html/index.html
+
+
+Performance
+-----------
+Links to performance tuning: http://wiki.jboss.org/wiki/Wiki.jsp?page=PerfTuning
+
+
+
+Bug fixes
+---------
+Discovery: sometimes, a discovery process would not get interrupted, leading to a long join phase and some
+ handleJoin() warning messages.
+[http://jira.jboss.com/jira/browse/JGRP-621]
+
+RpcDispatcher with incorrect membership passed as argument to callRemoteMethods() hangs.
+[http://jira.jboss.com/jira/browse/JGRP-620]
+
+
+The complete list of features and bug fixes can be found at http://jira.jboss.com/jira/browse/JGRP.
+
+
+Bela Ban, Kreuzlingen, Switzerland
+Vladimir Blagojevic, Toronto, Canada
+
+Nov 2007
+
+

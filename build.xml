@@ -1,0 +1,724 @@
+<?xml version="1.0"?>
+
+<!-- $Id: build.xml,v 1.123.2.31 2009/02/19 13:03:11 vlada Exp $ -->
+
+<project name="JGroups" default="compile" basedir=".">
+    <description>
+        build.xml file for JGroups. Needs Ant (jakarta.apache.org) to run
+    </description>
+
+    <property name="version" value="2.6.8.GA"/>
+    <property name="build.properties.file" value="build.properties"/>
+    <property file="${build.properties.file}"/>
+    <property name="root.dir" value="${basedir}"/>
+    <property name="src.dir" value="${root.dir}/src"/>
+    <property name="tests.dir" value="${root.dir}/tests/other"/>
+    <property name="junit.dir" value="${root.dir}/tests/junit"/>
+    <property name="junit-functional.dir" value="${root.dir}/tests/junit-functional"/>
+    <property name="stress.dir" value="${root.dir}/tests/stress"/>
+    <property name="perf.dir" value="${root.dir}/tests/perf"/>
+    <property name="compile.dir" value="${root.dir}/classes"/>
+    <property name="lib.dir" value="${root.dir}/lib"/>
+    <property name="license.dir" value="${lib.dir}/licenses"/>
+    <property name="dist.dir" value="${root.dir}/dist"/>
+    <property name="tmp.dir" value="${root.dir}/tmp"/>
+    <property name="doc.dir" value="${root.dir}/doc"/>
+    <property name="javadoc.dir" value="${dist.dir}/javadoc"/>
+    <property name="conf.dir" value="${root.dir}/conf"/>
+    <property name="bin.dir" value="${root.dir}/bin"/>
+    <property name="keystore.dir" value="${root.dir}/keystore"/>
+    <property name="javadoc.packages" value="org.jgroups.*"/>
+    <property name="unittest.timeout.low" value="240000"/>
+
+
+    <!-- default properties used in all test targets -->
+    <property name="channel.conf" value="udp.xml"/>
+    <property name="channel.conf.flush" value="flush-udp.xml"/>
+    <property name="threadcount" value="false"/>
+    <property name="test.verbose" value="false"/>
+
+
+    <path id="jg.classpath">
+        <pathelement location="${compile.dir}"/>
+        <pathelement location="${conf.dir}"/>
+        <pathelement location="${keystore.dir}"/>
+        <fileset dir="${lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <!-- patternsets used to define test sets -->
+    <patternset id="flush.tests">
+        <include name="org/jgroups/tests/FlushTest*"/>
+    	<include name="org/jgroups/tests/ConcurrentStateTransferTest*"/>
+        <include name="org/jgroups/tests/ConcurrentStartupTest*"/>
+    </patternset>
+
+
+    <patternset id="one.test">
+        <include name="**/*${test}*"/>
+    </patternset>
+
+    <patternset id="all.tests">
+        <include name="org/jgroups/tests/**Test**"/>
+        <include name="org/jgroups/blocks/**Test**"/>
+    </patternset>
+
+    <patternset id="junit.excludes">
+        <exclude name="**/DistributedQueueTest*"/>
+        <exclude name="**/ChannelTestBase*"/>
+    </patternset>
+
+
+    <target name="prepare">
+        <property environment="env"/>
+        <mkdir dir="${compile.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+        <mkdir dir="${javadoc.dir}"/>
+    </target>
+
+
+    <target name="compile"
+            depends="prepare"
+            description="Compiles are Java files">
+        <javac destdir="${compile.dir}"
+               source="1.5"
+               classpathref="jg.classpath"
+               debug="on"
+               deprecation="off"
+               optimize="off"
+               listfiles="false"
+               includes="org/jgroups/**">
+            <exclude name="**/obsolete/**"/>
+            <src path="${src.dir}"/>
+            <src path="${tests.dir}"/>
+            <src path="${junit.dir}"/>
+            <src path="${junit-functional.dir}"/>
+            <src path="${stress.dir}"/>
+            <src path="${perf.dir}"/>
+        </javac>
+    </target>
+
+
+    <target name="jar"
+            description="Compiles and creates JAR files in the ./dist directory"
+            depends="compile,
+                jgroups-all.jar,
+                jgroups-core.jar,
+    			jgroups-sources.jar">
+    </target>
+
+
+    <target name="jgroups-all.jar"
+            description="Creates the jgroups-all.jar (includes everything)">
+        <jar destfile="${dist.dir}/jgroups-all.jar"
+             basedir="${compile.dir}"
+             manifest="${conf.dir}/manifest.mf"
+             includes="org/jgroups/**">
+            <fileset dir="${conf.dir}" includes="*.dtd, *.xml" excludes="*-service.xml"/>
+        </jar>
+    </target>
+
+    <target name="jgroups-core.jar"
+            description="Creates the jgroups-core.jar. Includes only core file, no demos" depends="compile">
+        <mkdir dir="${dist.dir}"/>
+        <jar jarfile="${dist.dir}/jgroups-core.jar"
+             basedir="${compile.dir}"
+             manifest="${conf.dir}/manifest.mf"
+             includes="org/jgroups/**"
+             excludes="org/jgroups/demos/**,
+                      org/jgroups/tests/**,
+                      org/jgroups/**/*Test.class,
+                      org/jgroups/**/*Test\$*.class">
+            <fileset dir="${conf.dir}" includes="*.dtd, *.xml" excludes="*-service.xml"/>
+        </jar>
+    </target>
+
+    <target name="jgroups-sources.jar"
+            description="Creates the jgroups-sources.jar. Includes only core source files, no demos, no tests">
+        <mkdir dir="${dist.dir}"/>
+        <jar jarfile="${dist.dir}/jgroups-sources.jar"
+             basedir="${src.dir}"
+             manifest="${conf.dir}/manifest.mf"
+             includes="org/jgroups/**"
+             excludes="org/jgroups/demos/**">
+        </jar>
+    </target>
+
+    <target name="dist" description="Creates the distribution ZIP files in ./dist">
+        <antcall target="src-dist"/>
+        <antcall target="bin-dist"/>
+    </target>
+
+
+    <target name="src-dist" depends="clean">
+        <echo message="Creating source distribution ${dist.dir}/JGroups-${version}.src.zip"/>
+        <mkdir dir="${tmp.dir}/JGroups-${version}.src"/>
+        <copy todir="${tmp.dir}/JGroups-${version}.src">
+            <fileset dir="${root.dir}">
+                <exclude name="*CVS*"/>
+                <exclude name="doc/progguide/**"/>
+                <exclude name="doc/usersguide/**"/>
+            </fileset>
+        </copy>
+
+        <mkdir dir="${dist.dir}"/>
+        <zip zipfile="${dist.dir}/JGroups-${version}.src.zip" basedir="${tmp.dir}" filesonly="true"/>
+        <delete dir="${tmp.dir}" failonerror="false"/>
+    </target>
+
+    <target name="bin-dist" depends="jar">
+        <echo message="Creating binary distribution ${dist.dir}/JGroups-${version}.bin.zip"/>
+        <mkdir dir="${tmp.dir}/JGroups-${version}.bin"/>
+        <copy todir="${tmp.dir}/JGroups-${version}.bin">
+            <fileset dir="${root.dir}">
+                <include name="CREDITS"/>
+                <include name="INSTALL.html"/>
+                <include name="LICENSE"/>
+                <include name="EULA"/>
+            </fileset>
+            <fileset dir="${lib.dir}">
+                <include name="commons-logging*.jar"/>
+                <include name="log4j*.jar"/>
+                <include name="licenses/*"/>
+            </fileset>
+            <fileset dir="${dist.dir}">
+                <include name="jgroups-all*.jar"/>
+            </fileset>
+            <fileset dir="${conf.dir}">
+                <include name="config.txt"/>
+                <include name="udp.xml"/>
+                <include name="flush-*.xml"/>
+                <include name="tcp*.xml"/>
+                <include name="mping.xml"/>
+                <include name="sfc.xml"/>
+            </fileset>
+            <fileset dir="${bin.dir}">
+                <include name="jgroups*"/>
+            </fileset>
+        </copy>
+        <mkdir dir="${dist.dir}"/>
+        <zip zipfile="${dist.dir}/JGroups-${version}.bin.zip" basedir="${tmp.dir}" filesonly="true"/>
+        <delete dir="${tmp.dir}" failonerror="false"/>
+    </target>
+
+    <target name="gossip-service"
+            description="Creates the service archive used to deploy GossipRouter as a JBoss MBean"
+            depends="compile">
+        <mkdir dir="${dist.dir}/gossiptemp"/>
+        <copy file="${conf.dir}/gossip-service.xml" tofile="${dist.dir}/gossiptemp/jboss-service.xml"/>
+        <jar jarfile="${dist.dir}/gossip-router.sar"
+             basedir="${compile.dir}"
+             includes="org/jgroups/**"
+             excludes="org/jgroups/demos/**,
+                      org/jgroups/tests/**,
+                      org/jgroups/**/*Test.class,
+                      org/jgroups/**/*Test\$*.class">
+            <metainf dir="${dist.dir}/gossiptemp"
+                     includes="jboss-service.xml"/>
+            <fileset dir="${conf.dir}" includes="jg-magic-map.xml"/>
+        </jar>
+        <delete dir="${dist.dir}/gossiptemp"/>
+    </target>
+
+
+    <target name="jgroups-service" depends="jgroups-core.jar"
+            description="Creates the service archive used to deploy a JGroups channel as a JBoss MBean">
+        <jar jarfile="${dist.dir}/jgroups-service.sar">
+            <fileset dir="${dist.dir}" includes="jgroups-core.jar"/>
+            <fileset dir="${lib.dir}" includes="commons-logging*.jar,log4j*.jar"/>
+            <metainf dir="${conf.dir}"
+                     includes="jboss-service.xml"/>
+            <fileset dir="${conf.dir}" includes="jg-magic-map.xml,stacks.xml"/>
+        </jar>
+    </target>
+
+    <!-- generate java doc -->
+    <target name="javadoc"
+            depends="prepare"
+            description="Create Javadoc documentation in the ./dist/javadoc directory">
+        <javadoc packagenames="${javadoc.packages}"
+                 sourcepath="${src.dir}"
+                 destdir="${javadoc.dir}"
+                 classpathref="jg.classpath"
+                 author="true"
+                 version="true"
+                 use="true"
+                 bottom="Copyright &#169; 1998-2008 Bela Ban. All Rights Reserved."
+                 useexternalfile="yes"
+                 doctitle="JGroups"
+                 overview="${src.dir}/org/jgroups/overview.html">
+            <!-- The tag option for Javadoc is available in Java 1.4 or later. -->
+            <tag name="todo" description="To do:"/>
+        </javadoc>
+    </target>
+
+    <target name="all" depends="compile"/>
+
+    <target name="docs" description="Build all html and pdf docs" depends="check-docbook-support">
+        <echo message="Building docs from docbook ..."/>
+        <ant dir="${root.dir}/doc/manual" antfile="build.xml" target="all.doc"/>
+        <ant dir="${root.dir}/doc/tutorial" antfile="build.xml" target="all.doc"/>
+    </target>
+
+
+    <target name="manual" description="Build the html doc" depends="check-docbook-support">
+        <echo message="Building HTML doc from docbook ..."/>
+        <ant dir="${root.dir}/doc/manual" antfile="build.xml" target="html"/>
+        <ant dir="${root.dir}/doc/tutorial" antfile="build.xml" target="html"/>
+    </target>
+
+    <target name="pdf" description="Build the PDF doc" depends="check-docbook-support">
+        <echo message="Building PDF doc from docbook ..."/>
+        <ant dir="${root.dir}/doc/manual" antfile="build.xml" target="pdf"/>
+        <ant dir="${root.dir}/doc/tutorial" antfile="build.xml" target="pdf"/>
+    </target>
+
+
+    <target name="check-docbook-support">
+        <available file="${root.dir}/../docbook-support" type="dir"
+                   property="docbook.support.present"/>
+        <fail message="docbook-support directory does not exist, please check it out from jboss first (run target checkout-docbook-support)"
+              unless="docbook.support.present"/>
+    </target>
+
+
+    <target name="checkout-docbook-support">
+        <exec executable="svn">
+            <arg value="co"/>
+            <arg value="http://anonsvn.jboss.org/repos/jbossas/trunk/docbook-support"/>
+            <arg value="${root.dir}/../docbook-support"/>
+        </exec>
+    </target>
+
+    <target name="clean"
+            description="Removes all class files and the ./dist directory">
+        <delete dir="${compile.dir}" failonerror="false"/>
+        <delete dir="${dist.dir}" failonerror="false"/>
+        <delete dir="${tmp.dir}" failonerror="false"/>
+        <delete dir="${keystore.dir}" failonerror="false"/>
+        <delete file="${lib.dir}/jboss-test.jar" failonerror="false"/>
+        <delete>
+            <fileset dir="${root.dir}" defaultexcludes="no">
+                <include name="**/*~"/>
+            </fileset>
+        </delete>
+    	<!-- clean the docs directory if docs have been processed -->
+        <antcall target="clean-docs"/>
+    </target>
+
+	<target name="clean-docs" if="docbook.support.present">
+        <ant dir="${root.dir}/doc/manual" antfile="build.xml" target="clean"/>
+	</target>
+	
+
+    <target name="version"
+            depends="compile"
+            description="Prints some info about the Ant version and the OS/JDK used">
+        <echo message="${ant.version}"/>
+        <echo message="JDK=${java.vm.version} on ${os.name} ${os.version}"/>
+        <java classname="org.jgroups.Version" classpathref="jg.classpath"/>
+    </target>
+
+    
+    <target name="makeKeystore"
+            depends="compile"
+            description="Generates an appropraite temporary keystore file for the unit tests and the JVM in use">
+        <mkdir dir="${keystore.dir}"/>
+        <java classname="org.jgroups.demos.KeyStoreGenerator" fork="false">
+            <arg value="--storeName"/>
+            <arg value="keystore/defaultStore.keystore"/>
+            <classpath refid="jg.classpath"/>
+        </java>
+        <java classname="org.jgroups.demos.KeyStoreGenerator" fork="false">
+            <arg value="--storeName"/>
+            <arg value="keystore/defaultStore2.keystore"/>
+            <classpath refid="jg.classpath"/>
+        </java>
+    </target>
+
+	<target name="downloadFormatter" 
+		description="Download jboss-test.jar containing the class org.jboss.ant.taskdefs.XMLFormatter">
+		
+        <get usetimestamp="true"
+             src="http://repository.jboss.com/maven2/jboss/jboss-test/1.0.1.GA/jboss-test-1.0.1.GA.jar"
+             dest="${lib.dir}/jboss-test.jar"/>
+    
+	</target>
+
+    <target name="unittests-xml" depends="compile, makeKeystore, copy-build-properties">
+        <delete dir="${tmp.dir}/tests-results"/>
+        <mkdir dir="${tmp.dir}/tests-results"/>
+        <junit printsummary="yes" timeout="${unittest.timeout.low}" fork="yes">
+            <jvmarg value="-Djgroups.bind_addr=${jgroups.bind_addr}"/>
+            <jvmarg value="-Djgroups.tcpping.initial_hosts=${jgroups.tcpping.initial_hosts}"/>
+            <jvmarg value="-Dtests.tmp.dir=${tmp.dir}"/>
+            <jvmarg value="-Dlog4j.configuration=file:${conf.dir}/log4j.properties"/>
+            <jvmarg value="-Djava.net.preferIPv4Stack=true"/>
+            <classpath refid="jg.classpath"/>
+            <formatter type="xml" usefile="true"/>
+            <batchtest todir="${tmp.dir}/tests-results">
+                <fileset dir="${junit-functional.dir}" includes="**/*Test.java"/>
+                <fileset dir="${junit.dir}" includes="**/*Test.java" excludes="**/DistributedQueueTest.java"/>
+            </batchtest>
+        </junit>
+    </target>
+
+
+
+    <!--
+		 Main macro definition for test running. Work in progress.
+	-->
+    <macrodef name="testrunner">
+        <text name="text"/>
+        <attribute name="set"/>
+        <sequential>
+            <echo>@{text}</echo>
+            <echo>Using set: @{set}</echo>
+            <mkdir dir="${tmp.dir}/tests-results"/>
+            <property name="formatter.class"
+                      value="org.apache.tools.ant.taskdefs.optional.junit.XMLJUnitResultFormatter"/>
+        	<property name="testname.ext" value=""/>
+            <junit printsummary="yes" timeout="${unittest.timeout.low}" fork="yes" showoutput="${test.verbose}">
+                <jvmarg value="-Djgroups.bind_addr=${jgroups.bind_addr}"/>
+                <jvmarg value="-Djgroups.tcpping.initial_hosts=${jgroups.tcpping.initial_hosts}"/>
+                <jvmarg value="-Djgroups.udp.mcast_addr=${jgroups.udp.mcast_addr}"/> 
+                <jvmarg value="-Djgroups.udp.mcast_port=${jgroups.udp.mcast_port}"/>
+                <jvmarg value="-Djgroups.udp.ip_ttl=${jgroups.udp.ip_ttl}"/>
+                <jvmarg value="-Djava.net.preferIPv4Stack=true"/>                
+                <sysproperty key="cfg" value="${conf.dir}/stacks.xml"/>
+                <sysproperty key="log4j.configuration" value="file:${conf.dir}/log4j.properties"/>
+                <sysproperty key="tests.tmp.dir" value="${tmp.dir}"/>
+                <sysproperty key="channel.conf" value="${channel.conf}"/>
+                <sysproperty key="channel.conf.flush" value="${channel.conf.flush}"/>
+                <sysproperty key="threadcount" value="${threadcount}"/>
+                <classpath refid="jg.classpath"/>
+                <sysproperty key="jboss-junit-configuration" value="${testname.ext}"/>
+                <formatter classname="${formatter.class}" extension="${testname.ext}.xml"/>
+                <batchtest todir="${tmp.dir}/tests-results">
+                    <fileset dir="${junit.dir}">
+                        <patternset refid="@{set}"/>
+                        <patternset refid="${junit.excludes}"/>
+                    </fileset>
+                </batchtest>
+            </junit>
+        </sequential>
+    </macrodef>
+
+
+    <macrodef name="testrunner-functional">
+        <text name="text"/>
+        <attribute name="set"/>
+        <sequential>
+            <echo>@{text}</echo>
+            <echo>Using set: @{set}</echo>
+            <mkdir dir="${tmp.dir}/tests-results"/>
+            <property name="formatter.class"
+                      value="org.apache.tools.ant.taskdefs.optional.junit.XMLJUnitResultFormatter"/>
+            <junit printsummary="yes" timeout="${unittest.timeout.low}" fork="yes" showoutput="${test.verbose}">
+                <jvmarg value="-Djgroups.bind_addr=${jgroups.bind_addr}"/>
+                <jvmarg value="-Djgroups.tcpping.initial_hosts=${jgroups.tcpping.initial_hosts}"/>
+                <jvmarg value="-Djava.net.preferIPv4Stack=true"/>
+                <sysproperty key="cfg" value="${conf.dir}/stacks.xml"/>
+                <sysproperty key="log4j.configuration" value="file:${conf.dir}/log4j.properties"/>
+                <sysproperty key="tests.tmp.dir" value="${tmp.dir}"/>
+                <sysproperty key="channel.conf" value="${channel.conf}"/>
+                <sysproperty key="channel.conf.flush" value="${channel.conf.flush}"/>
+                <sysproperty key="threadcount" value="${threadcount}"/>
+                <classpath refid="jg.classpath"/>
+                <formatter type="xml" usefile="true" unless="testname.ext"/>
+                <sysproperty key="jboss-junit-configuration" value="${testname.ext}"/>
+                <formatter classname="${formatter.class}" extension="-${testname.ext}.xml" if="testname.ext"/>
+                <batchtest todir="${tmp.dir}/tests-results">
+                    <fileset dir="${junit-functional.dir}">
+                        <patternset refid="@{set}"/>
+                        <patternset refid="${junit.excludes}"/>
+                    </fileset>
+                </batchtest>
+            </junit>
+        </sequential>
+    </macrodef>
+
+
+    <!--
+		 Target wrapping macro definition for test running. All test targets 
+		 use this target. 
+	-->
+    <target name="runtests" depends="compile, copy-build-properties">
+        <testrunner set="${testset}">Tests running with parameters:
+            channel.conf=${channel.conf}
+            channel.conf.flush=${channel.conf.flush}
+            testname.ext=${testname.ext}
+        </testrunner>
+    </target>
+
+
+    <target name="runtests-functional" depends="compile, copy-build-properties">
+        <testrunner-functional set="all.tests">Tests running with parameters:
+            channel.conf=${channel.conf}
+            channel.conf.flush=${channel.conf.flush}
+            threadcount=${threadcount}
+            test.verbose=${test.verbose}
+            testname.ext=${testname.ext}
+            formatter.class=${formatter.class}
+        	junit.excludes=${junit.excludes}
+        </testrunner-functional>
+    </target>
+	
+	<!--
+          Runs flush tests in various channel modes
+                    
+	     -->
+    <target name="all-flush-tests" depends="makeKeystore, downloadFormatter"
+            description="Runs flush tests in various channel modes">
+    	
+    	<antcall target="runtests">
+            <param name="testset" value="flush.tests"/>
+    		<param name="channel.conf" value="udp.xml"/>
+    		<param name="channel.conf.flush" value="flush-udp.xml"/>
+    		<param name="test.verbose" value="false"/>
+    		<param name="testname.ext" value="udp"/>    		
+    		<param name="junit.excludes" value="junit.excludes"/>
+    		<param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+        </antcall>
+    	
+        <antcall target="runtests">
+            <param name="testset" value="flush.tests"/>
+        	<param name="channel.conf" value="tcp.xml"/>
+        	<param name="channel.conf.flush" value="flush-tcp.xml"/>
+        	<param name="test.verbose" value="false"/>
+        	<param name="testname.ext" value="tcp"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        	<param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+        </antcall>   
+    	
+    </target>
+	
+	
+
+
+    <!--
+              Runs entire testsuite for nightly Cruise Control builds.
+     -->
+    <target name="all-tests-cc" depends="makeKeystore, downloadFormatter"
+            description="Runs entire testsuite for nightly Cruise Control builds">
+
+        <antcall target="runtests-functional">
+            <param name="testset" value="all.tests"/>
+            <param name="testname.ext" value="functional"/>
+            <param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="udp.xml"/>
+            <param name="channel.conf.flush" value="flush-udp.xml"/>
+            <param name="testname.ext" value="udp"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+            <param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+        </antcall>
+
+
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="tcp.xml"/>
+            <param name="channel.conf.flush" value="flush-tcp.xml"/>
+            <param name="testname.ext" value="tcp"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+            <param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+        </antcall>
+
+    </target>
+
+
+    <!--
+			 Runs entire testsuite.
+			 Note: report generated will NOT contain results for all stacks.
+			 See all-tests-cc. 		 
+	-->
+    <target name="all-tests" depends="makeKeystore"
+            description="Runs entire testsuite">
+
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="udp.xml"/>
+            <param name="channel.conf.flush" value="flush-udp.xml"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+
+
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="tcp.xml"/>
+            <param name="channel.conf.flush" value="flush-tcp.xml"/>
+			<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+
+    </target>
+
+
+    <!--
+          Runs entire functional testsuite.
+          Other valid parameters that can additionally be specified are:
+          threadcount
+          test.verbose
+     -->
+    <target name="all-tests-functional" depends="makeKeystore, downloadFormatter"
+            description="Runs entire functional testsuite">
+        <antcall target="runtests-functional">
+            <param name="testset" value="all.tests"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        	<param name="testname.ext" value="functional"/>
+        	<param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+            <param name="test.verbose" value="true"/>
+        </antcall>
+    </target>
+	
+	
+    <!--
+          Runs entire testsuite with default udp confguration specified by udp.xml.
+          Other valid parameters that can additionally be specified are:
+          threadcount
+          test.verbose
+     -->
+    <target name="all-tests-udp" depends="makeKeystore, downloadFormatter"
+            description="Runs entire testsuite with default udp confguration specified by udp.xml">
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+            <param name="channel.conf" value="udp.xml"/>
+            <param name="channel.conf.flush" value="flush-udp.xml"/>
+        	<param name="testname.ext" value="udp"/>
+        	<param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+            <param name="test.verbose" value="false"/>
+        </antcall>
+    </target>
+
+    <!--
+          Runs entire testsuite with default tunnel confguration specified by tunnel.xml.
+          Other valid parameters that can additionally be specified are:
+          threadcount
+          test.verbose
+         -->
+    <target name="all-tests-tunnel" depends="makeKeystore"
+            description="Runs entire testsuite with default tunnel confguration specified by tunnel.xml">
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="tunnel.xml"/>
+            <param name="channel.conf.flush" value="tunnel.xml"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+    </target>
+
+
+
+    <!--
+          Runs entire testsuite with default tcp confguration specified by tcp.xml.
+          Other valid parameters that can additionally be specified are:
+          threadcount
+          test.verbose
+     -->
+    <target name="all-tests-tcp" depends="makeKeystore, downloadFormatter"
+            description="Runs entire testsuite with default tcp confguration specified by tcp.xml">
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+            <param name="channel.conf" value="tcp.xml"/>
+            <param name="channel.conf.flush" value="flush-tcp.xml"/>
+        	<param name="testname.ext" value="tcp"/>
+        	<param name="formatter.class" value="org.jboss.ant.taskdefs.XMLJUnitMultipleResultFormatter"/>
+            <param name="test.verbose" value="false"/>
+        </antcall>
+    </target>
+	
+    <!--
+          Runs entire testsuite with default tcp-nio confguration specified by tcp-nio.xml.
+          Other valid parameters that can additionally be specified are:
+          threadcount
+          test.verbose
+     -->
+    <target name="all-tests-tcp-nio" depends="makeKeystore"
+            description="Runs entire testsuite with default tcp confguration specified by tcp.xml">
+        <antcall target="runtests">
+            <param name="testset" value="all.tests"/>
+            <param name="channel.conf" value="tcp-nio.xml"/>
+            <param name="channel.conf.flush" value="flush-tcp-nio.xml"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+    </target>
+	
+
+
+
+	
+	
+    <!--
+          Runs a single junit test indicated by -Dtest=<testname> parameter.
+          Note that indication of full class name is not necessary to invoke
+          a single test but rather a unique substring of <testname>. For example,
+          in order to invoke org.jgroups.tests.ConcurrentStartupTest from a
+          command line, invoking build.sh one-test -Dtest=Conc is good enough since
+          Conc is a unique substring among all test names.
+
+          Other valid parameters that can additionally be specified are:
+
+          channel.conf
+          channel.conf.flush
+          threadcount
+          test.verbose
+     -->
+    <target name="one-test"
+            description="Runs a single junit test indicated by -Dtest=testname parameter, e.g. -Dtest=Deadlock2Test (no package names needed)">
+        <antcall target="runtests">
+            <param name="testset" value="one.test"/>
+            <param name="test.verbose" value="true"/>
+        	<param name="junit.excludes" value="junit.excludes"/>
+        </antcall>
+    </target>
+
+
+
+
+    <target name="copy-build-properties">
+        <copy file="${build.properties.file}.template" tofile="${build.properties.file}" overwrite="false"/>
+    </target>
+
+    <target name="findxalan">
+        <available property="xalan.available" classpathref="jg.classpath" classname="org.apache.xalan.Version"/>
+        <fail unless="xalan.available"
+              message="Xalan was not found. Please add the xalan.jar file from the lib directory to the CLASSPATH and retry"/>
+    </target>
+
+
+    <target name="testreport"
+            depends="findxalan,unittests-xml"
+            if="xalan.available"
+            description="Generates HTML from unit tests (target unitests-xml must have run before)">
+        <delete dir="${tmp.dir}/html"/>
+        <mkdir dir="${tmp.dir}/html"/>
+        <junitreport todir="${tmp.dir}/html">
+            <fileset dir="${tmp.dir}/tests-results" includes="**/TEST-*.xml"/>
+            <report todir="${tmp.dir}/html"/>
+        </junitreport>
+        <echo message="********************************************************************"/>
+        <echo message="The unit test report is available in ${tmp.dir}/html/index.html"/>
+        <echo message="********************************************************************"/>
+    </target>
+
+
+    <target name="report"
+            depends="findxalan"
+            if="xalan.available"
+            description="Generates HTML from unit tests (target unitests-xml must have run before)">
+        <delete dir="${tmp.dir}/html"/>
+        <mkdir dir="${tmp.dir}/html"/>
+        <junitreport todir="${tmp.dir}/html">
+            <fileset dir="${tmp.dir}/tests-results" includes="**/TEST-*.xml"/>
+            <report todir="${tmp.dir}/html"/>
+        </junitreport>
+        <echo message="********************************************************************"/>
+        <echo message="The unit test report is available in ${tmp.dir}/html/index.html"/>
+        <echo message="********************************************************************"/>
+    </target>
+</project>
