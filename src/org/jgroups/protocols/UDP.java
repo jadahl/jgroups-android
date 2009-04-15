@@ -523,13 +523,18 @@ public class UDP extends TP implements Runnable {
                 bindToInterfaces(interfaces, mcast_sock, mcast_addr.getIpAddress());
             }
             else {
-                if(bind_addr != null)
-                    mcast_sock.setInterface(bind_addr);
-                 mcast_sock.joinGroup(tmp_addr);
+                // XXX
+                // Avoid setting network interface (IP_MULTICAST_IF), assume
+                // we only have one interface (due to crash on Android)
+                //if(bind_addr != null)
+                //   mcast_sock.setInterface(bind_addr);
+                mcast_sock.joinGroup(tmp_addr);
             }
 
+            // XXX
+            // Disable sending on all interfaces (setting interface crashes on Android)
             // 3b. Create mcast sender socket
-            if(send_on_all_interfaces || (send_interfaces != null && !send_interfaces.isEmpty())) {
+            /*if(send_on_all_interfaces || (send_interfaces != null && !send_interfaces.isEmpty())) {
                 List<NetworkInterface> interfaces;
                 if(send_interfaces != null)
                     interfaces=send_interfaces;
@@ -552,6 +557,7 @@ public class UDP extends TP implements Runnable {
                     index++;
                 }
             }
+            */
         }
 
         setBufferSizes();
