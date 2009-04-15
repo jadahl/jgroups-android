@@ -90,6 +90,10 @@
                listfiles="false"
                includes="org/jgroups/**">
             <exclude name="**/obsolete/**"/>
+            <exclude name="**/demos/**"/>
+            <exclude name="**/jmx/**"/>
+            <exclude name="**/tests/**"/>
+            <exclude name="**/junit/**"/>
             <src path="${src.dir}"/>
             <src path="${tests.dir}"/>
             <src path="${junit.dir}"/>

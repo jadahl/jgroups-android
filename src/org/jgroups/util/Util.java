@@ -13,12 +13,12 @@ import org.jgroups.protocols.pbcast.NakAckHeader;
 import org.jgroups.stack.IpAddress;
 import org.jgroups.stack.Protocol;
 
-import javax.management.MBeanServer;
-import javax.management.MBeanServerFactory;
+/*import javax.management.MBeanServer;
+import javax.management.MBeanServerFactory;*/
 import java.io.*;
-import java.lang.management.ManagementFactory;
+/*import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
+import java.lang.management.ThreadMXBean;*/
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -978,7 +978,7 @@ public class Util {
 
     public static String dumpThreads() {
         StringBuilder sb=new StringBuilder();
-        ThreadMXBean bean=ManagementFactory.getThreadMXBean();
+        /*ThreadMXBean bean=ManagementFactory.getThreadMXBean();
         long[] ids=bean.getAllThreadIds();
         ThreadInfo[] threads=bean.getThreadInfo(ids, 20);
         for(int i=0; i < threads.length; i++) {
@@ -994,7 +994,7 @@ public class Util {
                 sb.append("\n");
             }
             sb.append("\n\n");
-        }
+        }*/
         return sb.toString();
     }
     
@@ -2376,7 +2376,7 @@ public class Util {
     }
 
 
-    public static MBeanServer getMBeanServer() {
+    /*public static MBeanServer getMBeanServer() {
 		ArrayList servers = MBeanServerFactory.findMBeanServer(null);
 		if (servers != null && !servers.isEmpty()) {
 			// return 'jboss' server if available
@@ -2393,7 +2393,7 @@ public class Util {
 			//if it all fails, get the default server
 			return ManagementFactory.getPlatformMBeanServer();
 		}
-	}
+	}*/
 
 
     public static String getProperty(Protocol prot, String prop_name) {
